@@ -38,5 +38,7 @@ int main() {
     printf("Derivative values:\n");
     printValues(derivative_vals, N);
 
+    free(function_vals);
+    free(derivative_vals);
     return 1;
 }
