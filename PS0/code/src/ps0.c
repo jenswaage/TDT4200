@@ -12,6 +12,10 @@ float square(float x) {
     return x * x;
 }
 
+float centralDifference(float x) {
+    return (square(x + 1) - square(x - 1))/2;
+}
+
 void printValues(float* array, int size) {
     for(int i = 0; i < size; i = i + 1) {
         printf("%.2f\n", array[i]);
