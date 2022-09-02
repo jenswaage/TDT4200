@@ -2,7 +2,7 @@
 # include <stdlib.h>
 // Task 1
 
-int N = 200;
+int N = 50;
 
 float * allocateArray(int n) {
     return malloc(n * sizeof(float));
