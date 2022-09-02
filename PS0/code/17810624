@@ -1,0 +1,8 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(int argc, char** argv) {
+    int N = 10;
+    printf("Hello world! This is an integer: %d\n", N);
+    return 0;
+}
