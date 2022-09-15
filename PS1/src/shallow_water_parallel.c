@@ -93,7 +93,7 @@ main ( int argc, char **argv )
     // TODO 3 Allocate space for each process' sub-grid
     // and initialize data for the sub-grid
     domain_init();
-
+    printf("[RANK %d of %d] Initialized sub-grid of size %d.\n", rank, size, grid_size);
     for ( int_t iteration = 0; iteration <= max_iteration; iteration++ )
     {
         // TODO 7 Communicate border values
@@ -185,35 +185,33 @@ domain_init ( void )
 
     grid_size = N / size;
 
-    printf("Grid size: %d\n", grid_size);
-    MPI_Barrier(MPI_COMM_WORLD);
-    mass[0] = calloc ( (N+2), sizeof(real_t) );
-    mass[1] = calloc ( (N+2),  sizeof(real_t) );
+    mass[0] = calloc ( (grid_size+2), sizeof(real_t) );
+    mass[1] = calloc ( (grid_size+2),  sizeof(real_t) );
 
-    mass_velocity_x[0] = calloc ( (N+2), sizeof(real_t) );
-    mass_velocity_x[1] = calloc ( (N+2),  sizeof(real_t) );
+    mass_velocity_x[0] = calloc ( (grid_size+2), sizeof(real_t) );
+    mass_velocity_x[1] = calloc ( (grid_size+2),  sizeof(real_t) );
 
-    velocity_x = calloc ( (N+2), sizeof(real_t) );
-    acceleration_x = calloc ( (N+2), sizeof(real_t) );
+    velocity_x = calloc ( (grid_size+2), sizeof(real_t) );
+    acceleration_x = calloc ( (grid_size+2), sizeof(real_t) );
 
     // Data initialization
-    for ( int_t x=1; x<=N; x++ )
+    for ( int_t x=1; x<=grid_size; x++ )
     {
         PN(x) = 1e-3;
         PNU(x) = 0.0;
 
-        real_t c = x-N/2;
-        if ( sqrt ( c*c ) < N/20.0 )
+        real_t c = x-grid_size/2;
+        if ( sqrt ( c*c ) < grid_size/20.0 )
         {
             PN(x) -= 5e-4*exp (
-                    - 4*pow( c, 2.0 ) / (real_t)(N)
+                    - 4*pow( c, 2.0 ) / (real_t)(grid_size)
             );
         }
 
         PN(x) *= density;
     }
 
-    dx = domain_size / (real_t) N;
+    dx = domain_size / (real_t) grid_size;
     dt = 0.1*dx;
 
 }
