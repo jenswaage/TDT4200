@@ -21,6 +21,9 @@ const real_t
     gravity = 9.81,
     density = 997.0;
 
+// Global MPI variables
+int size;
+
 real_t
     *mass[2] = { NULL, NULL },
     *mass_velocity_x[2] = { NULL, NULL },
@@ -59,7 +62,7 @@ main ( int argc, char **argv )
     // TODO 1 Initialize MPI
 
     MPI_Init(&argc, &argv);
-    int size, rank;
+    int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
@@ -85,7 +88,7 @@ main ( int argc, char **argv )
     max_iteration = options->max_iteration;
     snapshot_frequency = options->snapshot_frequency;
 
-    printf("[RANK %d] {N: %d, max_iteration: %d, snapshot_frequency: %d}\n", rank, N, max_iteration, snapshot_frequency);
+    printf("[RANK %d of %d] {N: %d, max_iteration: %d, snapshot_frequency: %d}\n", rank, size, N, max_iteration, snapshot_frequency);
     // TODO 3 Allocate space for each process' sub-grid
     // and initialize data for the sub-grid
     domain_init();
