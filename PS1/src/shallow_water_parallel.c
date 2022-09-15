@@ -23,6 +23,7 @@ const real_t
 
 // Global MPI variables
 int size;
+int grid_size;
 
 real_t
     *mass[2] = { NULL, NULL },
@@ -182,6 +183,10 @@ domain_init ( void )
     // TODO 3 Allocate space for each process' sub-grid
     // and initialize data for the sub-grid
 
+    grid_size = N / size;
+
+    printf("Grid size: %d\n", grid_size);
+    MPI_Barrier(MPI_COMM_WORLD);
     mass[0] = calloc ( (N+2), sizeof(real_t) );
     mass[1] = calloc ( (N+2),  sizeof(real_t) );
 
