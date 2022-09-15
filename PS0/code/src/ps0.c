@@ -1,6 +1,5 @@
 # include <stdio.h>
 # include <stdlib.h>
-// Task 1
 
 int N = 50;
 

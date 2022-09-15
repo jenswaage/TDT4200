@@ -66,12 +66,20 @@ main ( int argc, char **argv )
     // TODO 2 Parse arguments in the rank 0 processes
     // and broadcast to other processes
 
-    OPTIONS *options = parse_args( argc, argv );
-    if ( !options )
-    {
-        fprintf( stderr, "Argument parsing failed\n" );
-        exit(1);
+    OPTIONS *options;
+
+    if (rank == 0) {
+        options = parse_args( argc, argv );
+
+        if ( !options )
+        {
+            fprintf( stderr, "Argument parsing failed\n" );
+            exit(1);
+        }
+        
     }
+
+    MPI_Bcast(options, sizeof(OPTIONS), MPI_INT, 0, MPI_COMM_WORLD);
 
     N = options->N;
     max_iteration = options->max_iteration;

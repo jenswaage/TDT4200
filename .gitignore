@@ -1,6 +1,18 @@
 # Prerequisites
 *.d
 
+# Ignore all
+*
+
+# Unignore all with extensions
+!*.*
+
+# Unignore makefile
+!Makefile
+
+# Unignore all dirs
+!*/
+
 # Object files
 *.o
 *.ko
@@ -50,3 +62,13 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# VS code
+.vscode/
+.DS_Store/
+
+# Outputs
+data/
+plots/
+video/
+
