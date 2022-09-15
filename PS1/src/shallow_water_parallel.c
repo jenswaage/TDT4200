@@ -45,7 +45,7 @@ real_t
 void time_step ( void );
 void boundary_condition( real_t *domain_variable, int sign, int rank );
 void domain_init ( int rank );
-void domain_save ( int_t iteration );
+void domain_save ( int_t iteration, int rank );
 void domain_finalize ( void );
 
 
@@ -91,17 +91,37 @@ main ( int argc, char **argv )
     max_iteration = options->max_iteration;
     snapshot_frequency = options->snapshot_frequency;
 
-    printf("[RANK %d of %d] {N: %d, max_iteration: %d, snapshot_frequency: %d}\n", rank, size, N, max_iteration, snapshot_frequency);
+    printf("[RANK %d] {N: %d, max_iteration: %d, snapshot_frequency: %d}\n", rank, N, max_iteration, snapshot_frequency);
     // TODO 3 Allocate space for each process' sub-grid
     // and initialize data for the sub-grid
     domain_init(rank);
-    printf("[RANK %d of %d] Initialized sub-grid of size %d.\n", rank, size, grid_size);
+    printf("[RANK %d] Initialized sub-grid of size %d.\n", rank, grid_size);
 
 
 
     for ( int_t iteration = 0; iteration <= max_iteration; iteration++ )
     {
-        // TODO 7 Communicate border values
+        // TODO 7 Communicate border values        
+        int east_neighbor = rank + 1;
+        int west_neighbor = rank - 1;
+
+        if (rank == 0) {
+            west_neighbor = size - 1;
+        } else if (rank == size - 1) {
+            east_neighbor = 0;
+        }
+
+        // send/receive east
+        MPI_Send(&PN(grid_end + 1), 1, MPI_DOUBLE, east_neighbor, 0, MPI_COMM_WORLD);
+        MPI_Send(&PNU(grid_end + 1), 1, MPI_DOUBLE, east_neighbor, 0, MPI_COMM_WORLD);
+        MPI_Recv(&PN(grid_end + 1), 1, MPI_DOUBLE, west_neighbor, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(&PNU(grid_end + 1), 1, MPI_DOUBLE, west_neighbor, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+        // send/receive west
+        MPI_Send(&PN(grid_start - 1), 1, MPI_DOUBLE, west_neighbor, 0, MPI_COMM_WORLD);
+        MPI_Send(&PNU(grid_start - 1), 1, MPI_DOUBLE, west_neighbor, 0, MPI_COMM_WORLD);
+        MPI_Recv(&PN(grid_start - 1), 1, MPI_DOUBLE, east_neighbor, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Recv(&PNU(grid_start - 1), 1, MPI_DOUBLE, east_neighbor, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
 
         // TODO 5 Boundary conditions
@@ -114,14 +134,15 @@ main ( int argc, char **argv )
         if ( iteration % snapshot_frequency == 0 )
         {
             printf (
-                "Iteration %ld of %ld (%.2lf%% complete)\n",
+                "[RANK %d] Iteration %ld of %ld (%.2lf%% complete)\n",
+                rank,
                 iteration,
                 max_iteration,
                 100.0 * (real_t) iteration / (real_t) max_iteration
             );
 
             // TODO 6 MPI I/O
-            domain_save ( iteration );
+            domain_save ( iteration, rank);
         }
 
         swap( &mass[0], &mass[1] );
@@ -233,7 +254,7 @@ domain_init ( int rank )
 
 
 void
-domain_save ( int_t iteration )
+domain_save ( int_t iteration, int rank )
 {
     int_t index = iteration / snapshot_frequency;
     char filename[256];
@@ -242,14 +263,28 @@ domain_save ( int_t iteration )
 
     // TODO 6 MPI I/O
 
-    FILE *out = fopen ( filename, "wb" );
+    //FILE *out = fopen ( filename, "wb" );                
+    MPI_File out;
+
+    MPI_File_open(MPI_COMM_WORLD,
+                  filename,
+                  MPI_MODE_CREATE | MPI_MODE_WRONLY,
+                  MPI_INFO_NULL,
+                  &out);
+
     if ( ! out ) {
         fprintf(stderr, "Failed to open file: %s\n", filename);
         exit(1);
     }
-    fwrite( &mass[0][1], sizeof(real_t), N, out );
-    fclose ( out );
-}
+    
+
+    //fwrite( &mass[0][1], sizeof(real_t), N, out );
+    MPI_Offset offset = rank * grid_size * sizeof(real_t);
+    MPI_File_write_at_all(out, offset, &PN(1), 1, MPI_DOUBLE, MPI_STATUS_IGNORE);
+    //fclose ( out );
+    MPI_File_close(&out);
+
+}   
 
 
 void
