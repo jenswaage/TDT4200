@@ -42,7 +42,7 @@ real_t
 
 void time_step ( void );
 void boundary_condition( real_t *domain_variable, int sign );
-void domain_init ( void );
+void domain_init ( int rank );
 void domain_save ( int_t iteration );
 void domain_finalize ( void );
 
@@ -92,8 +92,11 @@ main ( int argc, char **argv )
     printf("[RANK %d of %d] {N: %d, max_iteration: %d, snapshot_frequency: %d}\n", rank, size, N, max_iteration, snapshot_frequency);
     // TODO 3 Allocate space for each process' sub-grid
     // and initialize data for the sub-grid
-    domain_init();
+    domain_init(rank);
     printf("[RANK %d of %d] Initialized sub-grid of size %d.\n", rank, size, grid_size);
+
+
+
     for ( int_t iteration = 0; iteration <= max_iteration; iteration++ )
     {
         // TODO 7 Communicate border values
@@ -138,27 +141,27 @@ time_step ( void )
 {
     // TODO 4 Time step calculations
 
-    for ( int_t x=0; x<=N+1; x++ )
+    for ( int_t x=0; x<=grid_size+1; x++ )
     {
         DU(x) = PN(x) * U(x) * U(x)
                 + 0.5 * gravity * PN(x) * PN(x) / density;
     }
 
-    for ( int_t x=1; x<=N; x++ )
+    for ( int_t x=1; x<=grid_size; x++ )
     {
         PNU_next(x) = 0.5*( PNU(x+1) + PNU(x-1) ) - dt*(
                       ( DU(x+1) - DU(x-1) ) / (2*dx)
         );
     }
 
-    for ( int_t x=1; x<=N; x++ )
+    for ( int_t x=1; x<=grid_size; x++ )
     {
         PN_next(x) = 0.5*( PN(x+1) + PN(x-1) ) - dt*(
                        ( PNU(x+1) - PNU(x-1) ) / (2*dx)
         );
     }
 
-    for ( int_t x=1; x<=N; x++ )
+    for ( int_t x=1; x<=grid_size; x++ )
     {
         U(x) = PNU_next(x) / PN_next(x);
     }
@@ -178,40 +181,45 @@ boundary_condition ( real_t *domain_variable, int sign )
 
 
 void
-domain_init ( void )
+domain_init ( int rank )
 {
     // TODO 3 Allocate space for each process' sub-grid
     // and initialize data for the sub-grid
 
     grid_size = N / size;
 
-    mass[0] = calloc ( (grid_size+2), sizeof(real_t) );
-    mass[1] = calloc ( (grid_size+2),  sizeof(real_t) );
+    mass[0] = calloc ( (grid_size+2), sizeof(real_t) ); // PN(x)
+    mass[1] = calloc ( (grid_size+2),  sizeof(real_t) ); // PN_next(x)
 
-    mass_velocity_x[0] = calloc ( (grid_size+2), sizeof(real_t) );
-    mass_velocity_x[1] = calloc ( (grid_size+2),  sizeof(real_t) );
+    mass_velocity_x[0] = calloc ( (grid_size+2), sizeof(real_t) ); // PNU(x)
+    mass_velocity_x[1] = calloc ( (grid_size+2),  sizeof(real_t) ); // PNU_next(x)
 
     velocity_x = calloc ( (grid_size+2), sizeof(real_t) );
     acceleration_x = calloc ( (grid_size+2), sizeof(real_t) );
 
+    // get process specific indexes
+    int init_start = 1 + rank * grid_size;
+    int init_end = (rank + 1) * grid_size;
+
+
     // Data initialization
-    for ( int_t x=1; x<=grid_size; x++ )
+    for ( int_t x=init_start; x<=init_end; x++ )
     {
         PN(x) = 1e-3;
         PNU(x) = 0.0;
 
-        real_t c = x-grid_size/2;
-        if ( sqrt ( c*c ) < grid_size/20.0 )
+        real_t c = x-N/2;
+        if ( sqrt ( c*c ) < N/20.0 )
         {
             PN(x) -= 5e-4*exp (
-                    - 4*pow( c, 2.0 ) / (real_t)(grid_size)
+                    - 4*pow( c, 2.0 ) / (real_t)(N)
             );
         }
 
         PN(x) *= density;
     }
 
-    dx = domain_size / (real_t) grid_size;
+    dx = domain_size / (real_t) N;
     dt = 0.1*dx;
 
 }
