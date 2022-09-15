@@ -85,6 +85,7 @@ main ( int argc, char **argv )
     max_iteration = options->max_iteration;
     snapshot_frequency = options->snapshot_frequency;
 
+    printf("[RANK %d] {N: %d, max_iteration: %d, snapshot_frequency: %d}\n", rank, N, max_iteration, snapshot_frequency);
     // TODO 3 Allocate space for each process' sub-grid
     // and initialize data for the sub-grid
     domain_init();
