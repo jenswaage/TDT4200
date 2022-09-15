@@ -25,6 +25,8 @@ const real_t
 int size;
 int grid_size;
 
+int grid_start, grid_end;
+
 real_t
     *mass[2] = { NULL, NULL },
     *mass_velocity_x[2] = { NULL, NULL },
@@ -41,7 +43,7 @@ real_t
 #define DU(x)        acceleration_x[(x)]
 
 void time_step ( void );
-void boundary_condition( real_t *domain_variable, int sign );
+void boundary_condition( real_t *domain_variable, int sign, int rank );
 void domain_init ( int rank );
 void domain_save ( int_t iteration );
 void domain_finalize ( void );
@@ -103,8 +105,8 @@ main ( int argc, char **argv )
 
 
         // TODO 5 Boundary conditions
-        boundary_condition(mass[0], 1);
-        boundary_condition(mass_velocity_x[0], -1);
+        boundary_condition(mass[0], 1, rank);
+        boundary_condition(mass_velocity_x[0], -1, rank);
 
         // TODO 4 Time step calculations
         time_step();
@@ -141,27 +143,28 @@ time_step ( void )
 {
     // TODO 4 Time step calculations
 
-    for ( int_t x=0; x<=grid_size+1; x++ )
+
+    for ( int_t x=grid_start - 1; x<=grid_end+1; x++ )
     {
         DU(x) = PN(x) * U(x) * U(x)
                 + 0.5 * gravity * PN(x) * PN(x) / density;
     }
 
-    for ( int_t x=1; x<=grid_size; x++ )
+    for ( int_t x=grid_start; x<=grid_end; x++ )
     {
         PNU_next(x) = 0.5*( PNU(x+1) + PNU(x-1) ) - dt*(
                       ( DU(x+1) - DU(x-1) ) / (2*dx)
         );
     }
 
-    for ( int_t x=1; x<=grid_size; x++ )
+    for ( int_t x=grid_start; x<=grid_end; x++ )
     {
         PN_next(x) = 0.5*( PN(x+1) + PN(x-1) ) - dt*(
                        ( PNU(x+1) - PNU(x-1) ) / (2*dx)
         );
     }
 
-    for ( int_t x=1; x<=grid_size; x++ )
+    for ( int_t x=grid_start; x<=grid_end; x++ )
     {
         U(x) = PNU_next(x) / PN_next(x);
     }
@@ -169,13 +172,16 @@ time_step ( void )
 
 
 void
-boundary_condition ( real_t *domain_variable, int sign )
+boundary_condition ( real_t *domain_variable, int sign, int rank )
 {
     // TODO 5 Boundary conditions
 
     #define VAR(x) domain_variable[(x)]
-    VAR(   0 ) = sign*VAR( 2   );
-    VAR( N+1 ) = sign*VAR( N-1 );
+    if (rank == 0) {
+        VAR(   grid_start - 1 ) = sign*VAR( grid_start + 1    );
+    } else if (rank == 3) {
+        VAR( grid_end+1 ) = sign*VAR( grid_end-1 );
+    };
     #undef VAR
 }
 
@@ -198,12 +204,13 @@ domain_init ( int rank )
     acceleration_x = calloc ( (grid_size+2), sizeof(real_t) );
 
     // get process specific indexes
-    int init_start = 1 + rank * grid_size;
-    int init_end = (rank + 1) * grid_size;
+    grid_start = 1 + rank * grid_size;
+    grid_end = (rank + 1) * grid_size;
 
+    printf("[RANK %d] {grid_start: %d, grid_end: %d}\n", rank, grid_start, grid_end);
 
     // Data initialization
-    for ( int_t x=init_start; x<=init_end; x++ )
+    for ( int_t x=grid_start; x<=grid_end; x++ )
     {
         PN(x) = 1e-3;
         PNU(x) = 0.0;
