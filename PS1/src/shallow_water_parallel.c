@@ -263,7 +263,6 @@ domain_save ( int_t iteration, int rank )
 
     // TODO 6 MPI I/O
 
-    //FILE *out = fopen ( filename, "wb" );                
     MPI_File out;
 
     MPI_File_open(MPI_COMM_WORLD,
@@ -278,10 +277,8 @@ domain_save ( int_t iteration, int rank )
     }
     
 
-    //fwrite( &mass[0][1], sizeof(real_t), N, out );
     MPI_Offset offset = rank * grid_size * sizeof(real_t);
     MPI_File_write_at_all(out, offset, &PN(1), 1, MPI_DOUBLE, MPI_STATUS_IGNORE);
-    //fclose ( out );
     MPI_File_close(&out);
 
 }   
