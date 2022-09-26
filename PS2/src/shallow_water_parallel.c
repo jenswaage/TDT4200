@@ -24,6 +24,9 @@ int
     local_rows,
     local_cols;
 
+int n_dims = 2; // number of dimensions for cartesian communicator
+int *dims; // pointer to array of number of processes in each dimension
+
 #define MPI_RANK_ROOT  ( rank == 0 )
 
 struct timeval
@@ -94,7 +97,7 @@ main ( int argc, char **argv )
 
     // TODO 1 Create a communicator with cartesian topology
     MPI_Comm_size ( MPI_COMM_WORLD, &comm_size );
-    MPI_Comm_rank ( MPI_COMM_WORLD, &rank );
+    MPI_Comm_rank ( MPI_COMM_WORLD, &rank );  
 
     if ( MPI_RANK_ROOT )
     {
@@ -108,7 +111,13 @@ main ( int argc, char **argv )
         N = options->N;
         max_iteration = options->max_iteration;
         snapshot_frequency = options->snapshot_frequency;
+
+        // Create cartesian communicator
+        dims = calloc(n_dims, n_dims*sizeof(int)); // find number of processes in each dimension
+        MPI_Dims_create(comm_size, n_dims, dims);
+
     }
+    
 
     MPI_Bcast ( &N, 1, MPI_INT64_T, 0, MPI_COMM_WORLD );
     MPI_Bcast ( &max_iteration, 1, MPI_INT64_T, 0, MPI_COMM_WORLD );
