@@ -62,13 +62,13 @@ real_t
     dx,
     dt;
 
-#define PN(y,x)         mass[0][(y)*(local_cols+2)+(x)]
-#define PN_next(y,x)    mass[1][(y)*(local_cols+2)+(x)]
-#define PNU(y,x)        mass_velocity_x[0][(y)*(local_cols+2)+(x)]
-#define PNU_next(y,x)   mass_velocity_x[1][(y)*(local_cols+2)+(x)]
+#define PN(y,x)         mass[0][(y)*(local_cols+2)+(x)] // Mass at time t
+#define PN_next(y,x)    mass[1][(y)*(local_cols+2)+(x)] // Mass at time t+1
+#define PNU(y,x)        mass_velocity_x[0][(y)*(local_cols+2)+(x)] // Mass velocity in x-drection at time t
+#define PNU_next(y,x)   mass_velocity_x[1][(y)*(local_cols+2)+(x)] // Mass velocity in x-drection at time t + 1
 #define PNV(y,x)        mass_velocity_y[0][(y)*(local_cols+2)+(x)]
 #define PNV_next(y,x)   mass_velocity_y[1][(y)*(local_cols+2)+(x)]
-#define PNUV(y,x)       mass_velocity[(y)*(local_cols+2)+(x)]
+#define PNUV(y,x)       mass_velocity[(y)*(local_cols+2)+(x)] 
 #define U(y,x)          velocity_x[(y)*(local_cols+2)+(x)]
 #define V(y,x)          velocity_y[(y)*(local_cols+2)+(x)]
 #define DU(y,x)         acceleration_x[(y)*(local_cols+2)+(x)]
@@ -102,10 +102,10 @@ main ( int argc, char **argv )
     MPI_Comm_rank ( MPI_COMM_WORLD, &rank );  
     
     // Allocate processes to grid
-    dims = calloc(n_dims, n_dims*sizeof(int)); // allocate adequately sized array   
+    dims = calloc(n_dims, sizeof(int)); // allocate adequately sized array   
     MPI_Dims_create(comm_size, n_dims, dims); // find number of processes in each dimension
     MPI_Cart_create(MPI_COMM_WORLD, n_dims, dims, periods, 0, &cart);
-    free(dims);
+    free(dims); // no longer needed 
 
     if ( MPI_RANK_ROOT )
     {
@@ -276,7 +276,7 @@ domain_init ( void )
 {
     // TODO 2 Find the number of columns and rows of each subgrid
     // Hint: you can get useful information from the cartesian communicator
-    local_rows  = N;
+    local_rows  = N; // 
     local_cols  = N;
 
     int_t local_size = (local_rows + 2) * (local_cols + 2);
