@@ -186,21 +186,23 @@ void
 time_step ( void )
 {
     // TODO 3 Update the area of iteration in the time step
-    for ( int_t y=1; y<=N; y++ )
-        for ( int_t x=1; x<=N; x++ )
+    // we replace all the references to N with local_rows and local_cols
+
+    for ( int_t y=1; y<=local_rows; y++ )
+        for ( int_t x=1; x<=local_cols; x++ )
         {
             U(y,x) = PNU(y,x) / PN(y,x);
             V(y,x) = PNV(y,x) / PN(y,x);
         }
 
-    for ( int_t y=1; y<=N; y++ )
-        for ( int_t x=1; x<=N; x++ )
+    for ( int_t y=1; y<=local_rows; y++ )
+        for ( int_t x=1; x<=local_cols; x++ )
         {
             PNUV(y,x) = PN(y,x) * U(y,x) * V(y,x);
         }
 
-    for ( int_t y=0; y<=N+1; y++ )
-        for ( int_t x=0; x<=N+1; x++ )
+    for ( int_t y=0; y<=local_rows+1; y++ )
+        for ( int_t x=0; x<=local_cols+1; x++ )
         {
             DU(y,x) = PN(y,x) * U(y,x) * U(y,x)
                     + 0.5 * gravity * ( PN(y,x) * PN(y,x) / density );
@@ -208,8 +210,8 @@ time_step ( void )
                     + 0.5 * gravity * ( PN(y,x) * PN(y,x) / density );
         }
 
-    for ( int_t y=1; y<=N; y++ )
-        for ( int_t x=1; x<=N; x++ )
+    for ( int_t y=1; y<=local_rows; y++ )
+        for ( int_t x=1; x<=local_cols; x++ )
         {
             PNU_next(y,x) = 0.5*( PNU(y,x+1) + PNU(y,x-1) ) - dt*(
                             ( DU(y,x+1) - DU(y,x-1) ) / (2*dx)
@@ -217,8 +219,8 @@ time_step ( void )
             );
         }
 
-    for ( int_t y=1; y<=N; y++ )
-        for ( int_t x=1; x<=N; x++ )
+    for ( int_t y=1; y<=local_rows; y++ )
+        for ( int_t x=1; x<=local_cols; x++ )
         {
             PNV_next(y,x) = 0.5*( PNV(y+1,x) + PNV(y-1,x) ) - dt*(
                             ( DV(y+1,x) - DV(y-1,x) ) / (2*dx)
@@ -226,8 +228,8 @@ time_step ( void )
             );
         }
 
-    for ( int_t y=1; y<=N; y++ )
-        for ( int_t x=1; x<=N; x++ )
+    for ( int_t y=1; y<=local_rows; y++ )
+        for ( int_t x=1; x<=local_cols; x++ )
         {
             PN_next(y,x) = 0.25*( PN(y,x+1) + PN(y,x-1) + PN(y+1,x) + PN(y-1,x) ) - dt*(
                            ( PNU(y,x+1) - PNU(y,x-1) ) / (2*dx)
@@ -241,16 +243,27 @@ void
 boundary_condition ( real_t *domain_variable, int sign )
 {
     // TODO 4 Change application of boundary condition to match cartesian topology
-    #define VAR(y,x) domain_variable[(y)*(local_cols+2)+(x)]
-    VAR(   0, 0   ) = sign*VAR(   2, 2   );
-    VAR( N+1, 0   ) = sign*VAR( N-1, 2   );
-    VAR(   0, N+1 ) = sign*VAR(   2, N-1 );
-    VAR( N+1, N+1 ) = sign*VAR( N-1, N-1 );
 
-    for ( int_t y=1; y<=N; y++ ) VAR(   y, 0   ) = sign*VAR(   y, 2   );
-    for ( int_t y=1; y<=N; y++ ) VAR(   y, N+1 ) = sign*VAR(   y, N-1 );
-    for ( int_t x=1; x<=N; x++ ) VAR(   0, x   ) = sign*VAR(   2, x   );
-    for ( int_t x=1; x<=N; x++ ) VAR( N+1, x   ) = sign*VAR( N-1, x   );
+    #define VAR(y,x) domain_variable[(y)*(local_cols+2)+(x)]
+
+    int cart_rank, coords[n_dims];
+    MPI_Comm_rank(cart, &cart_rank);
+    MPI_Cart_coords(cart, cart_rank, n_dims, coords);
+
+    // we don't want left grids to set their right boundary, and vice versa
+    // similarly, we don't want top grids to set their bottom boundary, and vice versa
+
+
+    // set top corners
+    VAR( local_rows+1, coords[1] * (local_cols+1) ) = sign*VAR( local_rows-1, 2 - 2 * coords[1] + coords[1] * (local_cols-1) );
+    
+    // set bottom corners
+    VAR(   0, coords[1] * (local_cols+1)   ) = sign*VAR(   2, 2 - 2 * coords[1] + coords[1] * (local_cols-1)); 
+    
+    for ( int_t y=1; y<=local_rows; y++ ) VAR(   y, coords[1] * (local_cols+1)   ) = sign*VAR(   y, 2 - 2 * coords[1] + coords[1] * (local_cols-1)   );
+
+    for ( int_t x=1; x<=local_cols; x++ ) VAR( (1 - coords[0]) * local_rows+1, x   ) = sign*VAR( 2 - 2 * (1 - coords[0]) + (1 - coords[0]) * (local_rows-1), x   );
+    
     #undef VAR
 }
 
