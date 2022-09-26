@@ -140,6 +140,10 @@ main ( int argc, char **argv )
     {
         // TODO 5 Implement border exchange
 
+
+
+
+
         // TODO 4 Change application of boundary condition to match cartesian topology
         boundary_condition ( mass[0], 1 );
         boundary_condition ( mass_velocity_x[0], -1 );
@@ -158,8 +162,9 @@ main ( int argc, char **argv )
                     max_iteration,
                     100.0 * (real_t) iteration / (real_t) max_iteration
                 );
-            }
 
+            }   
+            printf("[RANK %d] {PNU(4, 3): %f, PNU_next(4, 3): %f}\n", rank, PNU(4, 3), PNU_next(4, 3));
             domain_save ( iteration );
         }
 
@@ -186,7 +191,6 @@ void
 time_step ( void )
 {
     // TODO 3 Update the area of iteration in the time step
-    // we replace all the references to N with local_rows and local_cols
 
     for ( int_t y=1; y<=local_rows; y++ )
         for ( int_t x=1; x<=local_cols; x++ )
@@ -246,23 +250,15 @@ boundary_condition ( real_t *domain_variable, int sign )
 
     #define VAR(y,x) domain_variable[(y)*(local_cols+2)+(x)]
 
-    int cart_rank, coords[n_dims];
-    MPI_Comm_rank(cart, &cart_rank);
-    MPI_Cart_coords(cart, cart_rank, n_dims, coords);
+    VAR(   0, 0   ) = sign*VAR(   2, 2   );
+    VAR( local_rows+1, 0   ) = sign*VAR( local_rows-1, 2   );
+    VAR(   0, local_cols+1 ) = sign*VAR(   2, local_cols-1 );
+    VAR( local_rows+1, local_cols+1 ) = sign*VAR( local_rows-1, local_cols-1 );
 
-    // we don't want left grids to set their right boundary, and vice versa
-    // similarly, we don't want top grids to set their bottom boundary, and vice versa
-
-
-    // set top corners
-    VAR( local_rows+1, coords[1] * (local_cols+1) ) = sign*VAR( local_rows-1, 2 - 2 * coords[1] + coords[1] * (local_cols-1) );
-    
-    // set bottom corners
-    VAR(   0, coords[1] * (local_cols+1)   ) = sign*VAR(   2, 2 - 2 * coords[1] + coords[1] * (local_cols-1)); 
-    
-    for ( int_t y=1; y<=local_rows; y++ ) VAR(   y, coords[1] * (local_cols+1)   ) = sign*VAR(   y, 2 - 2 * coords[1] + coords[1] * (local_cols-1)   );
-
-    for ( int_t x=1; x<=local_cols; x++ ) VAR( (1 - coords[0]) * local_rows+1, x   ) = sign*VAR( 2 - 2 * (1 - coords[0]) + (1 - coords[0]) * (local_rows-1), x   );
+    for ( int_t y=1; y<=local_rows; y++ ) VAR(   y, 0   ) = sign*VAR(   y, 2   );
+    for ( int_t y=1; y<=local_rows; y++ ) VAR(   y, local_cols+1 ) = sign*VAR(   y, local_cols-1 );
+    for ( int_t x=1; x<=local_cols; x++ ) VAR(   0, x   ) = sign*VAR(   2, x   );
+    for ( int_t x=1; x<=local_cols; x++ ) VAR( local_rows+1, x   ) = sign*VAR( local_rows-1, x   );
     
     #undef VAR
 }
