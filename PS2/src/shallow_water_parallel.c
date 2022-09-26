@@ -13,7 +13,7 @@
 #define WALLTIME(t) ((double)(t).tv_sec + 1e-6 * (double)(t).tv_usec)
 
 MPI_Comm
-    cart;
+    cart; // holds the cartesian communicator
 MPI_Datatype
     grid,
     subgrid;
@@ -24,7 +24,9 @@ int
     local_rows,
     local_cols;
 
+// Cartesian information
 int n_dims = 2; // number of dimensions for cartesian communicator
+int periods[2] = {0, 0}; // periodic information for dimensions
 int *dims; // pointer to array of number of processes in each dimension
 
 #define MPI_RANK_ROOT  ( rank == 0 )
@@ -98,6 +100,12 @@ main ( int argc, char **argv )
     // TODO 1 Create a communicator with cartesian topology
     MPI_Comm_size ( MPI_COMM_WORLD, &comm_size );
     MPI_Comm_rank ( MPI_COMM_WORLD, &rank );  
+    
+    // Allocate processes to grid
+    dims = calloc(n_dims, n_dims*sizeof(int)); // allocate adequately sized array   
+    MPI_Dims_create(comm_size, n_dims, dims); // find number of processes in each dimension
+    MPI_Cart_create(MPI_COMM_WORLD, n_dims, dims, periods, 0, &cart);
+    free(dims);
 
     if ( MPI_RANK_ROOT )
     {
@@ -112,16 +120,13 @@ main ( int argc, char **argv )
         max_iteration = options->max_iteration;
         snapshot_frequency = options->snapshot_frequency;
 
-        // Create cartesian communicator
-        dims = calloc(n_dims, n_dims*sizeof(int)); // find number of processes in each dimension
-        MPI_Dims_create(comm_size, n_dims, dims);
-
     }
     
 
     MPI_Bcast ( &N, 1, MPI_INT64_T, 0, MPI_COMM_WORLD );
     MPI_Bcast ( &max_iteration, 1, MPI_INT64_T, 0, MPI_COMM_WORLD );
     MPI_Bcast ( &snapshot_frequency, 1, MPI_INT64_T, 0, MPI_COMM_WORLD );
+    
 
     // TODO 2 Find the number of columns and rows of each subgrid
     //        and find the local x and y offsets for each process' subgrid
