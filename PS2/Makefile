@@ -1,6 +1,6 @@
 CC:=gcc
 PARALLEL_CC:=mpicc
-CFLAGS+=
+CFLAGS+=-g
 LDLIBS+=-lm
 
 SERIAL_SRC_FILES:=src/shallow_water_serial.c src/argument_utils.c
