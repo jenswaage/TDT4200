@@ -132,7 +132,7 @@ main ( int argc, char **argv )
     // Uncomment domain_save() and create_types() after TODO2 is complete
     domain_init();
 
-    // create_types();
+    create_types();
 
     gettimeofday ( &t_start, NULL );
 
@@ -160,7 +160,7 @@ main ( int argc, char **argv )
                 );
             }
 
-            // domain_save ( iteration );
+            domain_save ( iteration );
         }
 
         swap ( &mass[0], &mass[1] );
@@ -305,9 +305,6 @@ domain_init ( void )
     int_t local_x_offset = coords[1] * (N / dims[1]); // x-coord * N
     int_t local_y_offset = coords[0] * ((N / dims[0])); // y-coord * N
     
-    printf("[RANK %d] {x_offset: %lld, y_offset: %lld}\n", rank, local_x_offset, local_y_offset);
-    MPI_Finalize();
-    exit(0);
 
     for ( int_t y=1; y<=local_rows; y++ )
     {
