@@ -104,8 +104,7 @@ main ( int argc, char **argv )
     // Allocate processes to grid
     dims = calloc(n_dims, sizeof(int)); // allocate adequately sized array   
     MPI_Dims_create(comm_size, n_dims, dims); // find number of processes in each dimension
-    MPI_Cart_create(MPI_COMM_WORLD, n_dims, dims, periods, 0, &cart);
-    free(dims); // no longer needed 
+    MPI_Cart_create(MPI_COMM_WORLD, n_dims, dims, periods, 0, &cart); 
 
     if ( MPI_RANK_ROOT )
     {
@@ -276,8 +275,8 @@ domain_init ( void )
 {
     // TODO 2 Find the number of columns and rows of each subgrid
     // Hint: you can get useful information from the cartesian communicator
-    local_rows  = N; // 
-    local_cols  = N;
+    local_rows  = N / dims[0]; // number of rows = discretization steps / number of processes in dim 0 (evenly divisible) 
+    local_cols  = N / dims[1]; // number of cols = discretization steps / number of processes in dim 1 (evenly divisible)
 
     int_t local_size = (local_rows + 2) * (local_cols + 2);
 
@@ -299,8 +298,16 @@ domain_init ( void )
 
     // TODO 2 Find the local x and y offsets for each process' subgrid
     // Hint: you can get useful information from the cartesian communicator
-    int_t local_x_offset = 0;
-    int_t local_y_offset = 0;
+    int coords[n_dims]; // store process coordinates
+
+    MPI_Cart_coords(cart, rank, n_dims, coords);
+
+    int_t local_x_offset = coords[1] * (N / dims[1]); // x-coord * N
+    int_t local_y_offset = coords[0] * ((N / dims[0])); // y-coord * N
+    
+    printf("[RANK %d] {x_offset: %lld, y_offset: %lld}\n", rank, local_x_offset, local_y_offset);
+    MPI_Finalize();
+    exit(0);
 
     for ( int_t y=1; y<=local_rows; y++ )
     {
@@ -327,6 +334,8 @@ domain_init ( void )
 
     dx = domain_size / (real_t) N;
     dt = 5e-2;
+
+    free(dims); // no longer needed
 }
 
 
