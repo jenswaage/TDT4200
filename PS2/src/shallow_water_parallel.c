@@ -148,7 +148,7 @@ main ( int argc, char **argv )
         MPI_Cart_shift(cart, 0, 1, &y_neighbor_up, &y_neighbor_down);
         MPI_Cart_shift(cart, 1, 1, &x_neighbor_left, &x_neighbor_right);
 
-        if (y_neighbor_down != MPI_PROC_NULL) { 
+        if (y_neighbor_down != MPI_PROC_NULL) { // We have a downstairs neighbor
             MPI_Sendrecv(&DU(1, 1), 1, x_column, y_neighbor_down, 0, 
                          &DU(0, 1), 1, x_column, y_neighbor_down, 0, 
                          cart, MPI_STATUS_IGNORE);
@@ -167,7 +167,9 @@ main ( int argc, char **argv )
             MPI_Sendrecv(&PNUV(1, 1), 1, x_column, y_neighbor_down, 0, 
                          &PNUV(0, 1), 1, x_column, y_neighbor_down, 0, 
                          cart, MPI_STATUS_IGNORE);
-        } else {
+        } 
+        
+        if (y_neighbor_up != MPI_PROC_NULL) { // we have an upstairs neighbor
             MPI_Sendrecv(&DU(local_rows - 1, 1), 1, x_column, y_neighbor_up, 0, 
                          &DU(local_rows + 1, 1), 1, x_column, y_neighbor_up, 0, 
                          cart, MPI_STATUS_IGNORE);
@@ -207,7 +209,9 @@ main ( int argc, char **argv )
             MPI_Sendrecv(&PNUV(1, local_cols), 1, y_column, x_neighbor_right, 0, 
                          &PNUV(1, local_cols + 1), 1, y_column, x_neighbor_right, 0, 
                          cart, MPI_STATUS_IGNORE);
-        } else {
+        } 
+        
+        if (x_neighbor_left != MPI_PROC_NULL) {
             MPI_Sendrecv(&DU(1, 1), 1, y_column, x_neighbor_left, 0, 
                          &DU(1, 0), 1, y_column, x_neighbor_left, 0, 
                          cart, MPI_STATUS_IGNORE);
@@ -402,8 +406,8 @@ domain_init ( void )
 
     MPI_Cart_coords(cart, rank, n_dims, coords);
 
-    int_t local_x_offset = coords[1] * (N / dims[1]); // x-coord * N
-    int_t local_y_offset = coords[0] * ((N / dims[0])); // y-coord * N
+    int_t local_x_offset = coords[1] * local_cols; // x-coord * N
+    int_t local_y_offset = coords[0] * local_rows; // y-coord * N
     
 
     for ( int_t y=1; y<=local_rows; y++ )
