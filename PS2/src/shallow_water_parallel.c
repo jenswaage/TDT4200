@@ -16,7 +16,9 @@ MPI_Comm
     cart; // holds the cartesian communicator
 MPI_Datatype
     grid,
-    subgrid;
+    subgrid,
+    y_column,
+    x_column;
 
 int
     rank,
@@ -139,10 +141,92 @@ main ( int argc, char **argv )
     for ( int_t iteration = 0; iteration<=max_iteration; iteration++ )
     {
         // TODO 5 Implement border exchange
+        int 
+            y_neighbor_up, y_neighbor_down,
+            x_neighbor_left, x_neighbor_right;
+        
+        MPI_Cart_shift(cart, 0, 1, &y_neighbor_up, &y_neighbor_down);
+        MPI_Cart_shift(cart, 1, 1, &x_neighbor_left, &x_neighbor_right);
 
+        if (y_neighbor_down != MPI_PROC_NULL) { 
+            MPI_Sendrecv(&DU(1, 1), 1, x_column, y_neighbor_down, 0, 
+                         &DU(0, 1), 1, x_column, y_neighbor_down, 0, 
+                         cart, MPI_STATUS_IGNORE);
+            MPI_Sendrecv(&DV(1, 1), 1, x_column, y_neighbor_down, 0, 
+                         &DU(0, 1), 1, x_column, y_neighbor_down, 0, 
+                         cart, MPI_STATUS_IGNORE);
+            MPI_Sendrecv(&PN(1, 1), 1, x_column, y_neighbor_down, 0, 
+                         &PN(0, 1), 1, x_column, y_neighbor_down, 0, 
+                         cart, MPI_STATUS_IGNORE);
+            MPI_Sendrecv(&PNU(1, 1), 1, x_column, y_neighbor_down, 0, 
+                         &PNU(0, 1), 1, x_column, y_neighbor_down, 0, 
+                         cart, MPI_STATUS_IGNORE);             
+            MPI_Sendrecv(&PNV(1, 1), 1, x_column, y_neighbor_down, 0, 
+                         &PNV(0, 1), 1, x_column, y_neighbor_down, 0, 
+                         cart, MPI_STATUS_IGNORE);
+            MPI_Sendrecv(&PNUV(1, 1), 1, x_column, y_neighbor_down, 0, 
+                         &PNUV(0, 1), 1, x_column, y_neighbor_down, 0, 
+                         cart, MPI_STATUS_IGNORE);
+        } else {
+            MPI_Sendrecv(&DU(local_rows - 1, 1), 1, x_column, y_neighbor_up, 0, 
+                         &DU(local_rows + 1, 1), 1, x_column, y_neighbor_up, 0, 
+                         cart, MPI_STATUS_IGNORE);
+            MPI_Sendrecv(&DV(local_rows - 1, 1), 1, x_column, y_neighbor_up, 0, 
+                         &DV(local_rows + 1, 1), 1, x_column, y_neighbor_up, 0, 
+                         cart, MPI_STATUS_IGNORE);
+            MPI_Sendrecv(&PN(local_rows - 1, 1), 1, x_column, y_neighbor_up, 0, 
+                         &PN(local_rows + 1, 1), 1, x_column, y_neighbor_up, 0, 
+                         cart, MPI_STATUS_IGNORE);
+            MPI_Sendrecv(&PNU(local_rows - 1, 1), 1, x_column, y_neighbor_up, 0, 
+                         &PNU(local_rows + 1, 1), 1, x_column, y_neighbor_up, 0, 
+                         cart, MPI_STATUS_IGNORE);
+            MPI_Sendrecv(&PNV(local_rows - 1, 1), 1, x_column, y_neighbor_up, 0, 
+                         &PNV(local_rows + 1, 1), 1, x_column, y_neighbor_up, 0, 
+                         cart, MPI_STATUS_IGNORE);
+            MPI_Sendrecv(&PNUV(local_rows - 1, 1), 1, x_column, y_neighbor_up, 0, 
+                         &PNUV(local_rows + 1, 1), 1, x_column, y_neighbor_up, 0, 
+                         cart, MPI_STATUS_IGNORE);
+        }
 
-
-
+        if (x_neighbor_right != MPI_PROC_NULL) {
+            MPI_Sendrecv(&DU(1, local_cols), 1, y_column, x_neighbor_right, 0, 
+                         &DU(1, local_cols + 1), 1, y_column, x_neighbor_right, 0, 
+                         cart, MPI_STATUS_IGNORE);
+            MPI_Sendrecv(&DV(1, local_cols), 1, y_column, x_neighbor_right, 0, 
+                         &DV(1, local_cols + 1), 1, y_column, x_neighbor_right, 0, 
+                         cart, MPI_STATUS_IGNORE);
+            MPI_Sendrecv(&PN(1, local_cols), 1, y_column, x_neighbor_right, 0, 
+                         &PN(1, local_cols + 1), 1, y_column, x_neighbor_right, 0, 
+                         cart, MPI_STATUS_IGNORE);
+            MPI_Sendrecv(&PNU(1, local_cols), 1, y_column, x_neighbor_right, 0, 
+                         &PNU(1, local_cols + 1), 1, y_column, x_neighbor_right, 0, 
+                         cart, MPI_STATUS_IGNORE);
+            MPI_Sendrecv(&PNV(1, local_cols), 1, y_column, x_neighbor_right, 0, 
+                         &PNV(1, local_cols + 1), 1, y_column, x_neighbor_right, 0, 
+                         cart, MPI_STATUS_IGNORE);
+            MPI_Sendrecv(&PNUV(1, local_cols), 1, y_column, x_neighbor_right, 0, 
+                         &PNUV(1, local_cols + 1), 1, y_column, x_neighbor_right, 0, 
+                         cart, MPI_STATUS_IGNORE);
+        } else {
+            MPI_Sendrecv(&DU(1, 1), 1, y_column, x_neighbor_left, 0, 
+                         &DU(1, 0), 1, y_column, x_neighbor_left, 0, 
+                         cart, MPI_STATUS_IGNORE);
+            MPI_Sendrecv(&DV(1, 1), 1, y_column, x_neighbor_left, 0, 
+                         &DV(1, 0), 1, y_column, x_neighbor_left, 0, 
+                         cart, MPI_STATUS_IGNORE);
+            MPI_Sendrecv(&PN(1, 1), 1, y_column, x_neighbor_left, 0, 
+                         &PN(1, 0), 1, y_column, x_neighbor_left, 0, 
+                         cart, MPI_STATUS_IGNORE);
+            MPI_Sendrecv(&PNU(1, 1), 1, y_column, x_neighbor_left, 0, 
+                         &PNU(1, 0), 1, y_column, x_neighbor_left, 0, 
+                         cart, MPI_STATUS_IGNORE);
+            MPI_Sendrecv(&PNV(1, 1), 1, y_column, x_neighbor_left, 0, 
+                         &PNV(1, 0), 1, y_column, x_neighbor_left, 0, 
+                         cart, MPI_STATUS_IGNORE);
+            MPI_Sendrecv(&PNUV(1, 1), 1, y_column, x_neighbor_left, 0, 
+                         &PNUV(1, 0), 1, y_column, x_neighbor_left, 0, 
+                         cart, MPI_STATUS_IGNORE);
+        }
 
         // TODO 4 Change application of boundary condition to match cartesian topology
         boundary_condition ( mass[0], 1 );
@@ -164,7 +248,6 @@ main ( int argc, char **argv )
                 );
 
             }   
-            printf("[RANK %d] {PNU(4, 3): %f, PNU_next(4, 3): %f}\n", rank, PNU(4, 3), PNU_next(4, 3));
             domain_save ( iteration );
         }
 
@@ -276,6 +359,14 @@ create_types ( void )
 
     MPI_Type_commit ( &subgrid );
     MPI_Type_commit ( &grid ) ;
+
+    // create column type
+    MPI_Type_vector(local_rows, 1, local_cols + 2, MPI_DOUBLE, &y_column);
+    MPI_Type_vector(local_cols, 1, 1, MPI_DOUBLE, &x_column);
+
+    MPI_Type_commit(&y_column);
+    MPI_Type_commit(&x_column);
+
 }
 
 
