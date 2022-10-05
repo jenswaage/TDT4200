@@ -65,7 +65,7 @@ dkms.conf
 
 # VS code
 .vscode/
-.DS_Store/
+.DS_Store
 
 # Outputs
 data/
