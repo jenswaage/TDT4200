@@ -100,12 +100,39 @@ main ( int argc, char **argv )
 
     for ( int_t iteration = 0; iteration <= max_iteration; iteration++ )
     {
-        // TODO 7 Communicate border values        
+        // TODO 7 Communicate border values 
+        
+        int east_neighbor = rank + 1;
+        int west_neighbor = rank - 1;
+
+        // we separate the if-checks in case of single process
+        if (rank == 0) {
+            west_neighbor = size - 1;
+        } 
+        
+        if (rank == size - 1) {
+            east_neighbor = 0;
+        }
+        /** 
+        // east border values
+        MPI_Send(&mass[0][grid_size], 1, MPI_INT, east_neighbor, 0, MPI_COMM_WORLD);
+        MPI_Recv(&mass[0][0], 1, MPI_INT, west_neighbor, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+        MPI_Send(&mass_velocity_x[0][grid_size], 1, MPI_INT, east_neighbor, 0, MPI_COMM_WORLD); 
+        MPI_Recv(&mass_velocity_x[0][0], 1, MPI_INT, west_neighbor, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+        // west border values
+        MPI_Send(&mass[0][1], 1, MPI_INT, west_neighbor, 0, MPI_COMM_WORLD);
+        MPI_Recv(&mass[0][grid_size + 1], 1, MPI_INT, east_neighbor, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        
+        MPI_Send(&mass_velocity_x[0][1], 1, MPI_INT, west_neighbor, 0, MPI_COMM_WORLD);
+        MPI_Recv(&mass_velocity_x[0][grid_size + 1], 1, MPI_INT, east_neighbor, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        */
 
         // TODO 5 Boundary conditions
         boundary_condition(mass[0], 1, rank);
         boundary_condition(mass_velocity_x[0], -1, rank);
-
+        
         // TODO 4 Time step calculations
         time_step();
 
@@ -143,7 +170,7 @@ time_step ( void )
     // TODO 4 Time step calculations
 
 
-    for ( int_t x=1; x<=grid_size; x++ )
+    for ( int_t x=0; x<=grid_size + 1; x++ )
     {
         DU(x) = PN(x) * U(x) * U(x)
                 + 0.5 * gravity * PN(x) * PN(x) / density;
@@ -178,7 +205,9 @@ boundary_condition ( real_t *domain_variable, int sign, int rank )
     #define VAR(x) domain_variable[(x)]
     if (rank == 0) {
         VAR( 0 ) = sign*VAR( 2 );
-    } else if (rank == 3) {
+    } 
+    
+    if (rank == size - 1) {
         VAR( grid_size + 1 ) = sign*VAR( grid_size-1 );
     };
     #undef VAR

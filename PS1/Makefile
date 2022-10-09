@@ -37,7 +37,7 @@ run_serial: purge serial
 	./serial 
 
 run_parallel: purge parallel
-	mpirun -np 4 ./parallel
+	mpirun -np 1 ./parallel
 
 check_serial: purge serial
 	./check/check_serial_solution.sh
