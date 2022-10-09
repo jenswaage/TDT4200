@@ -31,6 +31,10 @@ const real_t
     gravity = 9.81,
     density = 997.0;
 
+// thread information
+pthread_t* thread_handles; 
+int thread_count, thread_id;
+
 real_t
     *mass[2] = { NULL, NULL},
     *mass_velocity_x[2] = { NULL, NULL },
@@ -61,6 +65,16 @@ void domain_init ( void );
 void domain_save ( int_t iteration );
 void domain_finalize ( void );
 
+/**
+ * Perform time step computation
+ */
+void* compute(void* thread_id) {
+
+    int this_id = (int) thread_id;
+    time_step();
+
+
+}
 
 void
 swap ( real_t** t1, real_t** t2 )
@@ -87,18 +101,31 @@ main ( int argc, char **argv )
     max_iteration = options->max_iteration;
     snapshot_frequency = options->snapshot_frequency;
 
+    // set number of threads
+    thread_count = 1;
+
+    // allocate array for thread handles
+    thread_handles = malloc(thread_count * sizeof(pthread_t));
+
     domain_init();
 
     gettimeofday ( &t_start, NULL );
 
     for ( int_t iteration = 0; iteration <= max_iteration; iteration++ )
-    {
+    {   
+
         boundary_condition ( mass[0], 1 );
         boundary_condition ( mass_velocity_x[0], -1 );
         boundary_condition ( mass_velocity_y[0], -1 );
-
-        time_step();
-
+        
+        for (thread_id = 0; thread_id < thread_count; thread_id++) {
+            pthread_create(&thread_handles[thread_id], NULL, compute, (void*) thread_id);
+        }
+        
+        for (thread_id = 0; thread_id < thread_count; thread_id++) {
+            pthread_join(thread_handles[thread_id], NULL);
+        }
+        
         if ( iteration % snapshot_frequency == 0 )
         {
             printf (
@@ -108,11 +135,11 @@ main ( int argc, char **argv )
                 100.0 * (real_t) iteration / (real_t) max_iteration
             );
             domain_save ( iteration );
-        }
+    }
 
-        swap ( &mass[0], &mass[1] );
-        swap ( &mass_velocity_x[0], &mass_velocity_x[1] );
-        swap ( &mass_velocity_y[0], &mass_velocity_y[1] );
+    swap ( &mass[0], &mass[1] );
+    swap ( &mass_velocity_x[0], &mass_velocity_x[1] );
+    swap ( &mass_velocity_y[0], &mass_velocity_y[1] );
     }
 
     gettimeofday ( &t_stop, NULL );
@@ -277,4 +304,7 @@ domain_finalize ( void )
     free ( velocity_y );
     free ( acceleration_x );
     free ( acceleration_y );
+
+    // free thread handles
+    free(thread_handles);
 }
