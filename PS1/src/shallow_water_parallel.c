@@ -24,7 +24,9 @@ const real_t
 // Global MPI variables
 int size, rank, grid_size;
 
-int grid_start, grid_end;
+// Grid variables
+int offset;
+
 
 real_t
     *mass[2] = { NULL, NULL },
@@ -91,40 +93,14 @@ main ( int argc, char **argv )
     MPI_Bcast(&max_iteration, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&snapshot_frequency, 1, MPI_INT, 0, MPI_COMM_WORLD);    
 
-    printf("[RANK %d] {N: %d, max_iteration: %d, snapshot_frequency: %d}\n", rank, N, max_iteration, snapshot_frequency);
     // TODO 3 Allocate space for each process' sub-grid
     // and initialize data for the sub-grid
 
-    exit(1);
     domain_init(rank);
-    printf("[RANK %d] Initialized sub-grid of size %d.\n", rank, grid_size);
-
-
 
     for ( int_t iteration = 0; iteration <= max_iteration; iteration++ )
     {
         // TODO 7 Communicate border values        
-        int east_neighbor = rank + 1;
-        int west_neighbor = rank - 1;
-
-        if (rank == 0) {
-            west_neighbor = size - 1;
-        } else if (rank == size - 1) {
-            east_neighbor = 0;
-        }
-
-        // send/receive east
-        MPI_Send(&PN(grid_end + 1), 1, MPI_DOUBLE, east_neighbor, 0, MPI_COMM_WORLD);
-        MPI_Send(&PNU(grid_end + 1), 1, MPI_DOUBLE, east_neighbor, 0, MPI_COMM_WORLD);
-        MPI_Recv(&PN(grid_end + 1), 1, MPI_DOUBLE, west_neighbor, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        MPI_Recv(&PNU(grid_end + 1), 1, MPI_DOUBLE, west_neighbor, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
-        // send/receive west
-        MPI_Send(&PN(grid_start - 1), 1, MPI_DOUBLE, west_neighbor, 0, MPI_COMM_WORLD);
-        MPI_Send(&PNU(grid_start - 1), 1, MPI_DOUBLE, west_neighbor, 0, MPI_COMM_WORLD);
-        MPI_Recv(&PN(grid_start - 1), 1, MPI_DOUBLE, east_neighbor, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        MPI_Recv(&PNU(grid_start - 1), 1, MPI_DOUBLE, east_neighbor, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
 
         // TODO 5 Boundary conditions
         boundary_condition(mass[0], 1, rank);
@@ -167,27 +143,27 @@ time_step ( void )
     // TODO 4 Time step calculations
 
 
-    for ( int_t x=grid_start - 1; x<=grid_end+1; x++ )
+    for ( int_t x=1; x<=grid_size; x++ )
     {
         DU(x) = PN(x) * U(x) * U(x)
                 + 0.5 * gravity * PN(x) * PN(x) / density;
     }
 
-    for ( int_t x=grid_start; x<=grid_end; x++ )
+    for ( int_t x=1; x<=grid_size; x++ )
     {
         PNU_next(x) = 0.5*( PNU(x+1) + PNU(x-1) ) - dt*(
                       ( DU(x+1) - DU(x-1) ) / (2*dx)
         );
     }
 
-    for ( int_t x=grid_start; x<=grid_end; x++ )
+    for ( int_t x=1; x<=grid_size; x++ )
     {
         PN_next(x) = 0.5*( PN(x+1) + PN(x-1) ) - dt*(
                        ( PNU(x+1) - PNU(x-1) ) / (2*dx)
         );
     }
 
-    for ( int_t x=grid_start; x<=grid_end; x++ )
+    for ( int_t x=1; x<=grid_size; x++ )
     {
         U(x) = PNU_next(x) / PN_next(x);
     }
@@ -201,9 +177,9 @@ boundary_condition ( real_t *domain_variable, int sign, int rank )
 
     #define VAR(x) domain_variable[(x)]
     if (rank == 0) {
-        VAR(   grid_start - 1 ) = sign*VAR( grid_start + 1    );
+        VAR( 0 ) = sign*VAR( 2 );
     } else if (rank == 3) {
-        VAR( grid_end+1 ) = sign*VAR( grid_end-1 );
+        VAR( grid_size + 1 ) = sign*VAR( grid_size-1 );
     };
     #undef VAR
 }
@@ -226,19 +202,17 @@ domain_init ( int rank )
     velocity_x = calloc ( (grid_size+2), sizeof(real_t) );
     acceleration_x = calloc ( (grid_size+2), sizeof(real_t) );
 
-    // get process specific indexes
-    grid_start = 1 + rank * grid_size;
-    grid_end = (rank + 1) * grid_size;
-
-    printf("[RANK %d] {grid_start: %d, grid_end: %d}\n", rank, grid_start, grid_end);
+    // each process is allocated a grid of responsibility based on their rank
+    // 0 is first, 3 is last
+    offset = grid_size * rank;  
 
     // Data initialization
-    for ( int_t x=grid_start; x<=grid_end; x++ )
+    for ( int_t x=1; x<=grid_size; x++ )
     {
         PN(x) = 1e-3;
         PNU(x) = 0.0;
 
-        real_t c = x-N/2;
+        real_t c = x + offset - N/2; // add the offset to check the position in the global grid
         if ( sqrt ( c*c ) < N/20.0 )
         {
             PN(x) -= 5e-4*exp (
@@ -280,7 +254,7 @@ domain_save ( int_t iteration, int rank )
     
 
     MPI_Offset offset = rank * grid_size * sizeof(real_t);
-    MPI_File_write_at_all(out, offset, &PN(1), 1, MPI_DOUBLE, MPI_STATUS_IGNORE);
+    MPI_File_write_at_all(out, offset, &mass[0][1], grid_size, MPI_DOUBLE, MPI_STATUS_IGNORE);
     MPI_File_close(&out);
 
 }   
