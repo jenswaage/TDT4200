@@ -22,8 +22,7 @@ const real_t
     density = 997.0;
 
 // Global MPI variables
-int size;
-int grid_size;
+int size, rank, grid_size;
 
 int grid_start, grid_end;
 
@@ -65,7 +64,6 @@ main ( int argc, char **argv )
     // TODO 1 Initialize MPI
 
     MPI_Init(&argc, &argv);
-    int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
@@ -82,18 +80,22 @@ main ( int argc, char **argv )
             fprintf( stderr, "Argument parsing failed\n" );
             exit(1);
         }
-        
+
+        N = options->N;
+        max_iteration = options->max_iteration;
+        snapshot_frequency = options->snapshot_frequency;
+
     }
-
-    MPI_Bcast(options, sizeof(OPTIONS), MPI_INT, 0, MPI_COMM_WORLD);
-
-    N = options->N;
-    max_iteration = options->max_iteration;
-    snapshot_frequency = options->snapshot_frequency;
+    
+    MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&max_iteration, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&snapshot_frequency, 1, MPI_INT, 0, MPI_COMM_WORLD);    
 
     printf("[RANK %d] {N: %d, max_iteration: %d, snapshot_frequency: %d}\n", rank, N, max_iteration, snapshot_frequency);
     // TODO 3 Allocate space for each process' sub-grid
     // and initialize data for the sub-grid
+
+    exit(1);
     domain_init(rank);
     printf("[RANK %d] Initialized sub-grid of size %d.\n", rank, grid_size);
 
