@@ -35,6 +35,14 @@ const real_t
 pthread_t* thread_handles; 
 int thread_count, thread_id;
 
+// domain information
+int subgrid_size;
+
+// synchronization
+int counter = 0;
+pthread_mutex_t mutex;
+pthread_cond_t cond_var;
+
 real_t
     *mass[2] = { NULL, NULL},
     *mass_velocity_x[2] = { NULL, NULL },
@@ -59,7 +67,7 @@ real_t
 #define DU(y,x)         acceleration_x[(y)*(N+2)+(x)]
 #define DV(y,x)         acceleration_y[(y)*(N+2)+(x)]
 
-void time_step ( void );
+void time_step ( int y_start, int y_end, int rank );
 void boundary_condition ( real_t *domain_variable, int sign );
 void domain_init ( void );
 void domain_save ( int_t iteration );
@@ -68,10 +76,15 @@ void domain_finalize ( void );
 /**
  * Perform time step computation
  */
-void* compute(void* thread_id) {
+void* compute(void* rank) {
 
-    int this_id = (int) thread_id;
-    time_step();
+    int thread_rank = (int) rank;
+
+    int y_start = thread_rank * subgrid_size + 1;
+    int y_end = y_start + subgrid_size - 1;
+
+
+    time_step(y_start, y_end, thread_rank);
 
 
 }
@@ -102,10 +115,15 @@ main ( int argc, char **argv )
     snapshot_frequency = options->snapshot_frequency;
 
     // set number of threads
-    thread_count = 1;
+    thread_count = 4;
+    subgrid_size = N / thread_count;
 
     // allocate array for thread handles
     thread_handles = malloc(thread_count * sizeof(pthread_t));
+
+    // set up mutex and condition variable
+    pthread_mutex_init(&mutex, NULL);
+    pthread_cond_init(&cond_var, NULL);
 
     domain_init();
 
@@ -153,22 +171,22 @@ main ( int argc, char **argv )
 
 
 void
-time_step ( void )
+time_step (int y_start, int y_end, int rank )
 {
-    for ( int_t y=1; y<=N; y++ )
+    for ( int_t y=y_start; y<=y_end; y++ )
         for ( int_t x=1; x<=N; x++ )
         {
             U(y,x) = PNU(y,x) / PN(y,x);
             V(y,x) = PNV(y,x) / PN(y,x);
         }
 
-    for ( int_t y=1; y<=N; y++ )
+    for ( int_t y=y_start; y<=y_end; y++ )
         for ( int_t x=1; x<=N; x++ )
         {
             PNUV(y,x) = PN(y,x) * U(y,x) * V(y,x);
         }
 
-    for ( int_t y=0; y<=N+1; y++ )
+    for ( int_t y=y_start-1; y<=y_end+1; y++ )
         for ( int_t x=0; x<=N+1; x++ )
         {
             DU(y,x) = PN(y,x) * U(y,x) * U(y,x)
@@ -177,7 +195,7 @@ time_step ( void )
                     + 0.5 * gravity * ( PN(y,x) * PN(y,x) / density );
         }
 
-    for ( int_t y=1; y<=N; y++ )
+    for ( int_t y=y_start; y<=y_end; y++ )
         for ( int_t x=1; x<=N; x++ )
         {
             PNU_next(y,x) = 0.5*( PNU(y,x+1) + PNU(y,x-1) ) - dt*(
@@ -186,7 +204,18 @@ time_step ( void )
             );
         }
 
-    for ( int_t y=1; y<=N; y++ )
+    // barrier
+    pthread_mutex_lock(&mutex);
+    counter++;
+    if (counter == thread_count) { // all threads are waiting
+        counter = 0; // reset the counter so the barrier can be reused
+        pthread_cond_broadcast(&cond_var); // broadcast all thread to wake up
+    } else {
+        while (pthread_cond_wait(&cond_var, &mutex) != 0); // while loop in case thread is awakened but not by broadcast
+    }
+    pthread_mutex_unlock(&mutex);
+
+    for ( int_t y=y_start; y<=y_end; y++ )
         for ( int_t x=1; x<=N; x++ )
         {
             PNV_next(y,x) = 0.5*( PNV(y+1,x) + PNV(y-1,x) ) - dt*(
@@ -195,7 +224,7 @@ time_step ( void )
             );
         }
 
-    for ( int_t y=1; y<=N; y++ )
+    for ( int_t y=y_start; y<=y_end; y++ )
         for ( int_t x=1; x<=N; x++ )
         {
             PN_next(y,x) = 0.25*( PN(y,x+1) + PN(y,x-1) + PN(y+1,x) + PN(y-1,x) ) - dt*(
@@ -307,4 +336,8 @@ domain_finalize ( void )
 
     // free thread handles
     free(thread_handles);
+
+    // destroy mutex and condition var
+    pthread_mutex_destroy(&mutex);
+    pthread_cond_destroy(&cond_var);
 }
