@@ -113,7 +113,7 @@ main ( int argc, char **argv )
         if (rank == size - 1) {
             east_neighbor = 0;
         }
-        /** 
+        
         // east border values
         MPI_Send(&mass[0][grid_size], 1, MPI_INT, east_neighbor, 0, MPI_COMM_WORLD);
         MPI_Recv(&mass[0][0], 1, MPI_INT, west_neighbor, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -127,14 +127,15 @@ main ( int argc, char **argv )
         
         MPI_Send(&mass_velocity_x[0][1], 1, MPI_INT, west_neighbor, 0, MPI_COMM_WORLD);
         MPI_Recv(&mass_velocity_x[0][grid_size + 1], 1, MPI_INT, east_neighbor, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        */
-
+        
         // TODO 5 Boundary conditions
         boundary_condition(mass[0], 1, rank);
         boundary_condition(mass_velocity_x[0], -1, rank);
         
         // TODO 4 Time step calculations
         time_step();
+
+
 
         if ( iteration % snapshot_frequency == 0 )
         {
