@@ -25,7 +25,9 @@ const real_t
 int size, rank, grid_size;
 
 // Grid variables
-int offset;
+int offset, 
+    east_neighbor, 
+    west_neighbor;
 
 
 real_t
@@ -92,6 +94,20 @@ main ( int argc, char **argv )
     MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&max_iteration, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&snapshot_frequency, 1, MPI_INT, 0, MPI_COMM_WORLD);    
+    
+    grid_size = N / size;
+    
+    east_neighbor = rank + 1;
+    west_neighbor = rank - 1;
+
+    // we separate the if-checks in case of single process
+    if (rank == 0) {
+        west_neighbor = size - 1;
+    } 
+    
+    if (rank == size - 1) {
+        east_neighbor = 0;
+    }
 
     // TODO 3 Allocate space for each process' sub-grid
     // and initialize data for the sub-grid
@@ -102,32 +118,39 @@ main ( int argc, char **argv )
     {
         // TODO 7 Communicate border values 
         
-        int east_neighbor = rank + 1;
-        int west_neighbor = rank - 1;
-
-        // we separate the if-checks in case of single process
-        if (rank == 0) {
-            west_neighbor = size - 1;
-        } 
-        
-        if (rank == size - 1) {
-            east_neighbor = 0;
-        }
-        
         // east border values
-        MPI_Send(&mass[0][grid_size], 1, MPI_INT, east_neighbor, 0, MPI_COMM_WORLD);
-        MPI_Recv(&mass[0][0], 1, MPI_INT, west_neighbor, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Send(&PN(grid_size), 1, MPI_DOUBLE, east_neighbor, 0, MPI_COMM_WORLD);
+        MPI_Recv(&PN(0), 1, MPI_DOUBLE, west_neighbor, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        
+        MPI_Send(&PNU(grid_size), 1, MPI_DOUBLE, east_neighbor, 0, MPI_COMM_WORLD); 
+        MPI_Recv(&PNU(0), 1, MPI_DOUBLE, west_neighbor, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-        MPI_Send(&mass_velocity_x[0][grid_size], 1, MPI_INT, east_neighbor, 0, MPI_COMM_WORLD); 
-        MPI_Recv(&mass_velocity_x[0][0], 1, MPI_INT, west_neighbor, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+        // send velocity if not on east border
+        if (rank != size - 1) {
+            MPI_Send(&U(grid_size), 1, MPI_DOUBLE, east_neighbor, 0, MPI_COMM_WORLD);
+        }
+
+        // receive velocity if not on west border
+        if (rank != 0) {
+            MPI_Recv(&U(0), 1, MPI_DOUBLE, west_neighbor, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        }
 
         // west border values
-        MPI_Send(&mass[0][1], 1, MPI_INT, west_neighbor, 0, MPI_COMM_WORLD);
-        MPI_Recv(&mass[0][grid_size + 1], 1, MPI_INT, east_neighbor, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        MPI_Send(&PN(1), 1, MPI_DOUBLE, west_neighbor, 0, MPI_COMM_WORLD);
+        MPI_Recv(&PN(grid_size + 1), 1, MPI_DOUBLE, east_neighbor, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         
-        MPI_Send(&mass_velocity_x[0][1], 1, MPI_INT, west_neighbor, 0, MPI_COMM_WORLD);
-        MPI_Recv(&mass_velocity_x[0][grid_size + 1], 1, MPI_INT, east_neighbor, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        
+        MPI_Send(&PNU(1), 1, MPI_DOUBLE, west_neighbor, 0, MPI_COMM_WORLD);
+        MPI_Recv(&PNU(grid_size + 1), 1, MPI_DOUBLE, east_neighbor, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+        if (rank != 0) {
+            MPI_Send(&U(1), 1, MPI_DOUBLE, west_neighbor, 0, MPI_COMM_WORLD);
+        }
+
+        if (rank != size - 1) {
+            MPI_Recv(&U(grid_size + 1), 1, MPI_DOUBLE, east_neighbor, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        }
+    
         // TODO 5 Boundary conditions
         boundary_condition(mass[0], 1, rank);
         boundary_condition(mass_velocity_x[0], -1, rank);
@@ -173,8 +196,15 @@ time_step ( void )
 
     for ( int_t x=0; x<=grid_size + 1; x++ )
     {
-        DU(x) = PN(x) * U(x) * U(x)
-                + 0.5 * gravity * PN(x) * PN(x) / density;
+        DU(x) = PN(x) * U(x) * U(x) + 0.5 * gravity * PN(x) * PN(x) / density;
+        /**
+        if (x == 0 || x == grid_size + 1) {
+            printf("[RANK %d] Current acceleration at position %d: %lld\n", rank, x, DU(x));
+            printf("[RANK %d] Current velocity at position %d: %lld\n", rank, x, U(x));
+            printf("[RANK %d] Current mass at position %d: %lld\n", rank, x, PN(x));
+
+        }
+        */
     }
 
     for ( int_t x=1; x<=grid_size; x++ )
@@ -220,8 +250,6 @@ domain_init ( int rank )
 {
     // TODO 3 Allocate space for each process' sub-grid
     // and initialize data for the sub-grid
-
-    grid_size = N / size;
 
     mass[0] = calloc ( (grid_size+2), sizeof(real_t) ); // PN(x)
     mass[1] = calloc ( (grid_size+2),  sizeof(real_t) ); // PN_next(x)
