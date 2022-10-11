@@ -80,6 +80,7 @@ void* compute(void* rank) {
 
     long thread_rank = (long) rank;
 
+    // allocate vertical slice of the grid for thread (easy alternative)
     int y_start = thread_rank * subgrid_size + 1;
     int y_end = y_start + subgrid_size - 1;
 
@@ -203,8 +204,11 @@ time_step (int y_start, int y_end, int rank )
                           + ( PNUV(y,x+1) - PNUV(y,x-1) ) / (2*dx)
             );
         }
+    
+    // Below this point, we rely on values that must be set by a different thread in the loops above
+    // This is the point to synchronize the threads with a barrier 
 
-    // barrier
+    // barrier - inspired by Intro to Parallel Computing book
     pthread_mutex_lock(&mutex);
     counter++;
     if (counter == thread_count) { // all threads are waiting
