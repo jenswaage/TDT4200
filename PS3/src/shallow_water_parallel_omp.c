@@ -93,6 +93,7 @@ main ( int argc, char **argv )
 
     gettimeofday ( &t_start, NULL );
 
+    // We can't simply parallelize this, as it would just perfor the same work multiple times
     for ( int_t iteration = 0; iteration <= max_iteration; iteration++ )
     {
         boundary_condition ( mass[0], 1 );
@@ -194,6 +195,8 @@ boundary_condition ( real_t *domain_variable, int sign )
     VAR( N+1, 0   ) = sign*VAR( N-1, 2   );
     VAR(   0, N+1 ) = sign*VAR(   2, N-1 );
     VAR( N+1, N+1 ) = sign*VAR( N-1, N-1 );
+
+    // parallelizing single loops reduces performance due to context switching overhead
     for ( int_t y=1; y<=N; y++ ) VAR(   y, 0   ) = sign*VAR(   y, 2   );
     for ( int_t y=1; y<=N; y++ ) VAR(   y, N+1 ) = sign*VAR(   y, N-1 );
     for ( int_t x=1; x<=N; x++ ) VAR(   0, x   ) = sign*VAR(   2, x   );
@@ -220,6 +223,7 @@ domain_init ( void )
     acceleration_x = calloc ( (N+2)*(N+2), sizeof(real_t) );
     acceleration_y = calloc ( (N+2)*(N+2), sizeof(real_t) );
 
+#   pragma omp parallel for num_threads(thread_count)
     for ( int_t y=1; y<=N; y++ )
     {
         for ( int_t x=1; x<=N; x++ )
