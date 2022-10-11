@@ -33,7 +33,7 @@ const real_t
 
 // thread information
 pthread_t* thread_handles; 
-int thread_count, thread_id;
+long thread_count, thread_id;
 
 // domain information
 int subgrid_size;
@@ -74,11 +74,11 @@ void domain_save ( int_t iteration );
 void domain_finalize ( void );
 
 /**
- * Perform time step computation
+ * Perform time step computation in a thread
  */
 void* compute(void* rank) {
 
-    int thread_rank = (int) rank;
+    long thread_rank = (long) rank;
 
     int y_start = thread_rank * subgrid_size + 1;
     int y_end = y_start + subgrid_size - 1;
