@@ -24,7 +24,8 @@ double
 int_t
     N,
     max_iteration,
-    snapshot_frequency;
+    snapshot_frequency,
+    thread_count;
 
 const real_t
     domain_size = 10.0,
@@ -86,6 +87,7 @@ main ( int argc, char **argv )
     N = options->N;
     max_iteration = options->max_iteration;
     snapshot_frequency = options->snapshot_frequency;
+    thread_count = 4;
 
     domain_init();
 
@@ -128,19 +130,21 @@ main ( int argc, char **argv )
 void
 time_step ( void )
 {
+#   pragma omp parallel for num_threads(thread_count)
     for ( int_t y=1; y<=N; y++ )
         for ( int_t x=1; x<=N; x++ )
         {
             U(y,x) = PNU(y,x) / PN(y,x);
             V(y,x) = PNV(y,x) / PN(y,x);
         }
-
+#   pragma omp parallel for num_threads(thread_count)
     for ( int_t y=1; y<=N; y++ )
         for ( int_t x=1; x<=N; x++ )
         {
             PNUV(y,x) = PN(y,x) * U(y,x) * V(y,x);
         }
 
+#   pragma omp parallel for num_threads(thread_count)
     for ( int_t y=0; y<=N+1; y++ )
         for ( int_t x=0; x<=N+1; x++ )
         {
@@ -150,6 +154,7 @@ time_step ( void )
                     + 0.5 * gravity * ( PN(y,x) * PN(y,x) / density );
         }
 
+#   pragma omp parallel for num_threads(thread_count)
     for ( int_t y=1; y<=N; y++ )
         for ( int_t x=1; x<=N; x++ )
         {
@@ -159,6 +164,7 @@ time_step ( void )
             );
         }
 
+#   pragma omp parallel for num_threads(thread_count)
     for ( int_t y=1; y<=N; y++ )
         for ( int_t x=1; x<=N; x++ )
         {
@@ -168,6 +174,7 @@ time_step ( void )
             );
         }
 
+#   pragma omp parallel for num_threads(thread_count)
     for ( int_t y=1; y<=N; y++ )
         for ( int_t x=1; x<=N; x++ )
         {
@@ -187,7 +194,6 @@ boundary_condition ( real_t *domain_variable, int sign )
     VAR( N+1, 0   ) = sign*VAR( N-1, 2   );
     VAR(   0, N+1 ) = sign*VAR(   2, N-1 );
     VAR( N+1, N+1 ) = sign*VAR( N-1, N-1 );
-
     for ( int_t y=1; y<=N; y++ ) VAR(   y, 0   ) = sign*VAR(   y, 2   );
     for ( int_t y=1; y<=N; y++ ) VAR(   y, N+1 ) = sign*VAR(   y, N-1 );
     for ( int_t x=1; x<=N; x++ ) VAR(   0, x   ) = sign*VAR(   2, x   );
